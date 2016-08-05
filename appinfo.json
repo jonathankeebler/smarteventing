@@ -7,7 +7,9 @@
     "companyName": "jonathan@keebler.net",
     "longName": "Horse",
     "projectType": "pebblejs",
-    "dependencies": {},
+    "dependencies": {
+        "pebble-clay": "*"
+    },
     "resources": {
         "media": [
             {
