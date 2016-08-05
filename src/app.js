@@ -18,6 +18,7 @@ var main = new UI.Window();
 var id, target, options;
 
 var distance_travelled = 0; // kilometers
+var speed = Settings && Settings.state && Settings.state.options && Settings.state.options.speed ? Settings.state.options.speed : 300;
 var last_coord = null;
 
 var is_started = false;
@@ -35,11 +36,17 @@ Pebble.addEventListener('webviewclosed', function(e) {
 
   // Save the Clay settings to the Settings module. 
   Settings.option(dict);
+	
+	if(Settings && Settings.state && Settings.state.options && Settings.state.options.speed)
+	{
+		speed = Settings.state.options.speed;	
+	}
+	
 });
 
 // Open Button and Display
 var txtOnLabel = new UI.Text({
-    position: new Vector2(0, 50),
+    position: new Vector2(0, 70),
     size: new Vector2(144, 30),
     font: 'Bitham 42 Bold',
     text: '0',
@@ -48,17 +55,26 @@ var txtOnLabel = new UI.Text({
 });
 
 var subText = new UI.Text({
-    position: new Vector2(0, 100),
+    position: new Vector2(0, 120),
     size: new Vector2(144, 30),
     font: 'Gothic 18',
-    text: '',
+    text: 'meters',
     textAlign: 'center',						
     color: 'white'
 });
 
+var timeLabel = new UI.Text({
+    position: new Vector2(0, 20),
+    size: new Vector2(144, 30),
+    font: 'Bitham 42 Bold',
+	text: '0:00',
+    textAlign: 'center',						
+    color: 'white'
+});
+
+var fake_last_pos = null;
+
 function success(pos) {
-  
-  console.log(pos);
   
   var crd = pos.coords;
   
@@ -68,10 +84,24 @@ function success(pos) {
     // Disregard it
     
     draw_distance_travelled();
-		subText.text("Accuracy: " + crd.accuracy.toFixed(0))
+		subText.text("Accuracy: " + crd.accuracy.toFixed(0) + "m")
     
     return;
-  }		
+  }
+	else if(!is_started)
+	{
+		if(!fake_last_pos)
+		{
+			fake_last_pos = pos;
+		}
+		else
+		{
+			fake_last_pos.coords.latitude += 0.0001;
+			fake_last_pos.coords.longitude += 0.0001;
+			pos = fake_last_pos;
+			crd = pos.coords;
+		}
+	}
   
   if(last_coord)
   {
@@ -93,13 +123,6 @@ function success(pos) {
   localStorage.setItem("distance_travelled", distance_travelled);
   if(last_coord) localStorage.setItem("last_coord", JSON.stringify(last_coord));
   
-  if(!is_started)
-  setTimeout(function()
-   {
-     pos.coords.latitude += 0.0010;
-     pos.coords.longitude += 0.0010;
-     if(!is_started) success(pos);
-   }, 1000);
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -156,6 +179,15 @@ function draw_distance_travelled()
 			subText.text("kilometers");
 		}
 	
+	var time = distance_travelled * 1000 / speed * 60;
+	
+	var seconds = Math.floor(time % 60);
+	var minutes = Math.floor(time / 60);
+	
+	//var time_friendly = ( minutes ? minutes.toFixed(0) + ":" : "" ) + (minutes && seconds < 10 ? "0" : "") + seconds.toFixed(0) + "s";
+	var time_friendly = minutes.toFixed(0) + ":" + (seconds < 10 ? "0" : "") + seconds.toFixed(0);
+	
+	timeLabel.text(time_friendly);
 }
 
 id = navigator.geolocation.watchPosition(success, error, options);    
@@ -176,12 +208,13 @@ main.on('click', 'select', function(e) {
 
 main.on('click', 'down', function(e) {
   is_started = true;
-  navigator.geolocation.clearWatch(id);
+	
+	navigator.geolocation.clearWatch(id);
   id = null;
   draw_distance_travelled();
   distance_travelled = 0;
   last_coord = null;
-  localStoage.setItem("distance_travelled", 0);
+  localStorage.setItem("distance_travelled", 0);
 });
 
 
@@ -190,6 +223,7 @@ main.on('click', 'down', function(e) {
 
 // Display Main Window
 main.backgroundColor('black');
+main.add(timeLabel);
 main.add(txtOnLabel);
 main.add(subText);
 main.show();
