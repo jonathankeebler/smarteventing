@@ -4,6 +4,7 @@
         "location",
         "configurable"
     ],
+    "enableMultiJS": true,
     "companyName": "jonathan@keebler.net",
     "longName": "Horse",
     "projectType": "pebblejs",
