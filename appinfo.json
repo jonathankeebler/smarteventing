@@ -4,13 +4,9 @@
         "location",
         "configurable"
     ],
-    "enableMultiJS": true,
     "companyName": "jonathan@keebler.net",
     "longName": "Horse",
     "projectType": "pebblejs",
-    "dependencies": {
-        "pebble-clay": "*"
-    },
     "resources": {
         "media": [
             {

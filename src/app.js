@@ -8,17 +8,12 @@ var UI = require('ui');
 var Vector2 = require('vector2');
 
 // Import the Clay package
-var Clay = require('pebble-clay');
-// Load our Clay configuration file
-var clayConfig = require('./config');
-// Initialize Clay
-var clay = new Clay(clayConfig);
+var Settings = require('settings');
+var Clay = require('clay');
+var clayConfig = require('config');
+var clay = new Clay(clayConfig, null, {autoHandleEvents: false});
 
-var main = new UI.Card({
-  subtitle: 'SmartEventing',
-  subtitleColor: '#000000', // Named colors
-  bodyColor: '#000000' // Hex colors
-});
+var main = new UI.Window();
 
 var id, target, options;
 
@@ -26,6 +21,40 @@ var distance_travelled = 0; // kilometers
 var last_coord = null;
 
 var is_started = false;
+
+
+Pebble.addEventListener('showConfiguration', function(e) {
+  Pebble.openURL(clay.generateUrl());
+});
+
+Pebble.addEventListener('webviewclosed', function(e) {
+  if (e && !e.response) {
+    return;
+  }
+  var dict = clay.getSettings(e.response);
+
+  // Save the Clay settings to the Settings module. 
+  Settings.option(dict);
+});
+
+// Open Button and Display
+var txtOnLabel = new UI.Text({
+    position: new Vector2(0, 50),
+    size: new Vector2(144, 30),
+    font: 'Bitham 42 Bold',
+    text: '0',
+    textAlign: 'center',						
+    color: 'white'
+});
+
+var subText = new UI.Text({
+    position: new Vector2(0, 100),
+    size: new Vector2(144, 30),
+    font: 'Gothic 18',
+    text: '',
+    textAlign: 'center',						
+    color: 'white'
+});
 
 function success(pos) {
   
@@ -38,10 +67,11 @@ function success(pos) {
   {
     // Disregard it
     
-    main.body((distance_travelled*1000).toFixed(0) + "m\nBad accuracy: " + crd.accuracy);
+    draw_distance_travelled();
+		subText.text("Accuracy: " + crd.accuracy.toFixed(0))
     
     return;
-  }
+  }		
   
   if(last_coord)
   {
@@ -58,7 +88,7 @@ function success(pos) {
     last_coord = JSON.parse(JSON.stringify(crd));
   }
   
-  main.body((distance_travelled*1000).toFixed(0) + "m");
+	draw_distance_travelled();
   
   localStorage.setItem("distance_travelled", distance_travelled);
   if(last_coord) localStorage.setItem("last_coord", JSON.stringify(last_coord));
@@ -102,7 +132,7 @@ options = {
   maximumAge: 0
 };
 
-if(localStorage.getItem("distance_travelled") != null)
+if(localStorage.getItem("distance_travelled") != null && parseFloat(localStorage.getItem("distance_travelled")) > 0)
 {
   is_started = true;
   distance_travelled = parseFloat(localStorage.getItem("distance_travelled"));
@@ -110,33 +140,56 @@ if(localStorage.getItem("distance_travelled") != null)
   {
     last_coord = JSON.parse(localStorage.getItem("last_coord"));
   }
-  main.body((distance_travelled*1000).toFixed(0) + "m");
+  draw_distance_travelled();
+}
+
+function draw_distance_travelled()
+{
+	if(distance_travelled < 99)
+		{
+			txtOnLabel.text((distance_travelled*1000).toFixed(0));
+			subText.text("meters");
+		}
+	else
+		{
+			txtOnLabel.text((distance_travelled).toFixed(0));		
+			subText.text("kilometers");
+		}
+	
 }
 
 id = navigator.geolocation.watchPosition(success, error, options);    
-
-main.show();
 
 
 main.on('click', 'up', function(e) {
   is_started = true;
   if(!id) id = navigator.geolocation.watchPosition(success, error, options);
-  main.body((distance_travelled*1000).toFixed(0) + "m");
+  draw_distance_travelled();
 });
 
 main.on('click', 'select', function(e) {
   is_started = true;
   navigator.geolocation.clearWatch(id);
   id = null;
-  main.body((distance_travelled*1000).toFixed(0) + "m");
+  draw_distance_travelled();
 });
 
 main.on('click', 'down', function(e) {
   is_started = true;
   navigator.geolocation.clearWatch(id);
   id = null;
-  main.body((distance_travelled*1000).toFixed(0) + "m");
+  draw_distance_travelled();
   distance_travelled = 0;
   last_coord = null;
-  localStoage.removeItem("distance_travelled");
+  localStoage.setItem("distance_travelled", 0);
 });
+
+
+
+
+
+// Display Main Window
+main.backgroundColor('black');
+main.add(txtOnLabel);
+main.add(subText);
+main.show();
