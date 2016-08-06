@@ -324,6 +324,8 @@ main.on("longClick", 'up', function(e)
 	if(is_race_mode)
 	{
 		timeLabel.text("-");
+		txtOnLabel.remove();
+		subText.remove();
 		txtOnLabel.color("#666666");
 		subText.color("#666666");
 	}
@@ -332,6 +334,8 @@ main.on("longClick", 'up', function(e)
 		txtOnLabel.color("white");
 		subText.color("white");
 		timeLabel.color("white");
+		main.add(txtOnLabel);
+		main.add(subText);
 	}
 	
 	draw_distance_travelled();
