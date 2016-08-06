@@ -21,7 +21,7 @@ module.exports = [
   "defaultValue": 350,
   "label": "Speed (meters/minute)",
   "min": 200,
-  "max": 600,
+  "max": 900,
   "step": 10
 },
   {

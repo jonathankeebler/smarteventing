@@ -4,8 +4,8 @@
         "location",
         "configurable"
     ],
-    "companyName": "jonathan@keebler.net",
-    "longName": "Horse",
+    "companyName": "Jonathan Keebler",
+    "longName": "SmartEventing",
     "projectType": "pebblejs",
     "resources": {
         "media": [
@@ -33,7 +33,7 @@
         ]
     },
     "sdkVersion": "3",
-    "shortName": "Horse",
+    "shortName": "SmartEventing",
     "targetPlatforms": [
         "aplite",
         "basalt",

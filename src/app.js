@@ -7,18 +7,22 @@
 var UI = require('ui');
 var Vector2 = require('vector2');
 
+var main = new UI.Window();
+main.backgroundColor('black');
+main.show();
+
 // Import the Clay package
 var Settings = require('settings');
 var Clay = require('clay');
 var clayConfig = require('config');
 var clay = new Clay(clayConfig, null, {autoHandleEvents: false});
 
-var main = new UI.Window();
+
 
 var id, target, options;
 
 var distance_travelled = 0; // kilometers
-var speed = Settings && Settings.state && Settings.state.options && Settings.state.options.speed ? Settings.state.options.speed : 300;
+var speed = Settings.option("speed") || 300;
 var last_coord = null;
 
 var is_started = false;
@@ -37,9 +41,9 @@ Pebble.addEventListener('webviewclosed', function(e) {
   // Save the Clay settings to the Settings module. 
   Settings.option(dict);
 	
-	if(Settings && Settings.state && Settings.state.options && Settings.state.options.speed)
+	if(Settings.option("speed"))
 	{
-		speed = Settings.state.options.speed;	
+		speed = Settings.option("speed");	
 	}
 	
 });
@@ -72,9 +76,36 @@ var timeLabel = new UI.Text({
     color: 'white'
 });
 
+main.add(timeLabel);
+main.add(txtOnLabel);
+main.add(subText);
+
+
 var fake_last_pos = null;
 
-function success(pos) {
+var latest_position = null;
+
+function success(pos)
+{
+	latest_position = pos;
+}
+
+var last_draw = null;
+
+setInterval(function()
+{
+	if(latest_position &&
+		( !last_draw || Date.now() - last_draw > 900 )
+	)
+	{
+		var pos = latest_position;
+		latest_position = null;
+		last_draw = Date.now();
+		if(id) process_position(pos);
+	}
+}, 1000);
+
+function process_position(pos) {
   
   var crd = pos.coords;
   
@@ -83,8 +114,7 @@ function success(pos) {
   {
     // Disregard it
     
-    draw_distance_travelled();
-		subText.text("Accuracy: " + crd.accuracy.toFixed(0) + "m")
+    draw_distance_travelled("Accuracy: " + crd.accuracy.toFixed(0) + "m");
     
     return;
   }
@@ -166,18 +196,26 @@ if(localStorage.getItem("distance_travelled") != null && parseFloat(localStorage
   draw_distance_travelled();
 }
 
-function draw_distance_travelled()
+function draw_distance_travelled(pSubText)
 {
+	var distance_string_m = (distance_travelled*1000).toFixed(0).toString();
+	var distance_string_km = (distance_travelled).toFixed(0).toString();
+	
 	if(distance_travelled < 99)
-		{
-			txtOnLabel.text((distance_travelled*1000).toFixed(0));
-			subText.text("meters");
-		}
+	{
+		if(txtOnLabel.text() != distance_string_m) txtOnLabel.text(distance_string_m);
+		if(!pSubText && subText.text() != "meters") subText.text("meters");
+	}
 	else
-		{
-			txtOnLabel.text((distance_travelled).toFixed(0));		
-			subText.text("kilometers");
-		}
+	{
+		if(txtOnLabel.text() != distance_string_km) txtOnLabel.text(distance_string_km);		
+		if(!pSubText && subText.text() != "kilometers") subText.text("kilometers");
+	}
+	
+	if(pSubText && subText.text() != pSubText)
+	{
+		subText.text(pSubText);
+	}
 	
 	var time = distance_travelled * 1000 / speed * 60;
 	
@@ -187,23 +225,22 @@ function draw_distance_travelled()
 	//var time_friendly = ( minutes ? minutes.toFixed(0) + ":" : "" ) + (minutes && seconds < 10 ? "0" : "") + seconds.toFixed(0) + "s";
 	var time_friendly = minutes.toFixed(0) + ":" + (seconds < 10 ? "0" : "") + seconds.toFixed(0);
 	
-	timeLabel.text(time_friendly);
+	if(timeLabel.text() != time_friendly) timeLabel.text(time_friendly);
 }
 
 id = navigator.geolocation.watchPosition(success, error, options);    
 
 
 main.on('click', 'up', function(e) {
-  is_started = true;
   if(!id) id = navigator.geolocation.watchPosition(success, error, options);
   draw_distance_travelled();
 });
 
 main.on('click', 'select', function(e) {
-  is_started = true;
   navigator.geolocation.clearWatch(id);
   id = null;
   draw_distance_travelled();
+	subText.text("PAUSED");
 });
 
 main.on('click', 'down', function(e) {
@@ -215,15 +252,6 @@ main.on('click', 'down', function(e) {
   distance_travelled = 0;
   last_coord = null;
   localStorage.setItem("distance_travelled", 0);
+	localStorage.setItem("last_coord", 0);
+	subText.text("STOPPED");
 });
-
-
-
-
-
-// Display Main Window
-main.backgroundColor('black');
-main.add(timeLabel);
-main.add(txtOnLabel);
-main.add(subText);
-main.show();
