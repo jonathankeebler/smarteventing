@@ -23,9 +23,17 @@ var id, target, options;
 
 var distance_travelled = 0; // kilometers
 var speed = Settings.option("speed") || 300;
+var time_elapsed = Settings.option("time_elapsed") || 0;
+
 var last_coord = null;
+var start = Settings.option("start") || Date.now();
+var paused_time = Settings.option("paused_time") || 0;
+var pause_started = null;
+var warning_seconds = Settings.option("warning_seconds") || 20;
 
 var is_started = false;
+
+var is_race_mode = false;
 
 
 Pebble.addEventListener('showConfiguration', function(e) {
@@ -44,6 +52,11 @@ Pebble.addEventListener('webviewclosed', function(e) {
 	if(Settings.option("speed"))
 	{
 		speed = Settings.option("speed");	
+	}
+	
+	if(Settings.option("warning_seconds"))
+	{
+		warning_seconds = Settings.option("warning_seconds");
 	}
 	
 });
@@ -94,6 +107,8 @@ var last_draw = null;
 
 setInterval(function()
 {
+	var pre_distance_travelled = distance_travelled;
+	
 	if(latest_position &&
 		( !last_draw || Date.now() - last_draw > 900 )
 	)
@@ -102,6 +117,56 @@ setInterval(function()
 		latest_position = null;
 		last_draw = Date.now();
 		if(id) process_position(pos);
+	}
+	
+	var time_elapsed = 0;
+	if(pre_distance_travelled == 0 && distance_travelled == 0)
+	{
+		start = Date.now();
+		Settings.option("start", Date.now());
+		paused_time = 0;
+		Settings.option("paused_time", 0);
+	}
+	else
+	{
+		time_elapsed = Math.floor((Date.now() - start - paused_time) / 1000);
+	}
+	
+	if(is_race_mode && id)
+	{	
+		var seconds = Math.floor(time_elapsed % 60);
+		var minutes = Math.floor(time_elapsed / 60);
+
+		var time_friendly = minutes.toFixed(0) + ":" + (seconds < 10 ? "0" : "") + seconds.toFixed(0);
+		
+		var time_goal = distance_travelled * 1000 / speed * 60;
+
+		if(timeLabel.text() != time_friendly) timeLabel.text(time_friendly);
+		
+		if(time_elapsed < time_goal - warning_seconds)
+		{
+			if(main.backgroundColor() != "green")
+			{
+				main.backgroundColor('green');
+				timeLabel.color("white");
+			}
+		}
+		else if(time_elapsed > time_goal + warning_seconds)
+		{
+			if(main.backgroundColor() != "red")
+			{
+				main.backgroundColor('red');
+				timeLabel.color("black");
+			}
+		}
+		else
+		{
+			if(main.backgroundColor() != "black")
+			{
+				main.backgroundColor('black');
+				timeLabel.color("white");
+			}
+		}
 	}
 }, 1000);
 
@@ -201,6 +266,8 @@ function draw_distance_travelled(pSubText)
 	var distance_string_m = (distance_travelled*1000).toFixed(0).toString();
 	var distance_string_km = (distance_travelled).toFixed(0).toString();
 	
+	var time_goal = distance_travelled * 1000 / speed * 60;
+	
 	if(distance_travelled < 99)
 	{
 		if(txtOnLabel.text() != distance_string_m) txtOnLabel.text(distance_string_m);
@@ -212,31 +279,66 @@ function draw_distance_travelled(pSubText)
 		if(!pSubText && subText.text() != "kilometers") subText.text("kilometers");
 	}
 	
-	if(pSubText && subText.text() != pSubText)
+	if(is_race_mode)
 	{
-		subText.text(pSubText);
+		
 	}
-	
-	var time = distance_travelled * 1000 / speed * 60;
-	
-	var seconds = Math.floor(time % 60);
-	var minutes = Math.floor(time / 60);
-	
-	//var time_friendly = ( minutes ? minutes.toFixed(0) + ":" : "" ) + (minutes && seconds < 10 ? "0" : "") + seconds.toFixed(0) + "s";
-	var time_friendly = minutes.toFixed(0) + ":" + (seconds < 10 ? "0" : "") + seconds.toFixed(0);
-	
-	if(timeLabel.text() != time_friendly) timeLabel.text(time_friendly);
+	else
+	{
+		if(pSubText && subText.text() != pSubText)
+		{
+			subText.text(pSubText);
+		}
+		
+		var seconds = Math.floor(time_goal % 60);
+		var minutes = Math.floor(time_goal / 60);
+
+		var time_friendly = minutes.toFixed(0) + ":" + (seconds < 10 ? "0" : "") + seconds.toFixed(0);
+
+		if(timeLabel.text() != time_friendly) timeLabel.text(time_friendly);
+	}
+		
 }
 
 id = navigator.geolocation.watchPosition(success, error, options);    
 
 
 main.on('click', 'up', function(e) {
+	if(pause_started)
+	{
+		paused_time += Date.now() - pause_started;
+		pause_started = null;
+		Settings.option("paused_time", paused_time);
+	}
+	
   if(!id) id = navigator.geolocation.watchPosition(success, error, options);
   draw_distance_travelled();
 });
 
+main.on("longClick", 'up', function(e)
+{
+	is_race_mode = !is_race_mode;
+	
+	main.backgroundColor('black');
+	
+	if(is_race_mode)
+	{
+		timeLabel.text("-");
+		txtOnLabel.color("#666666");
+		subText.color("#666666");
+	}
+	else
+	{
+		txtOnLabel.color("white");
+		subText.color("white");
+		timeLabel.color("white");
+	}
+	
+	draw_distance_travelled();
+});
+
 main.on('click', 'select', function(e) {
+	if(!pause_started) pause_started = Date.now();
   navigator.geolocation.clearWatch(id);
   id = null;
   draw_distance_travelled();
@@ -254,4 +356,5 @@ main.on('click', 'down', function(e) {
   localStorage.setItem("distance_travelled", 0);
 	localStorage.setItem("last_coord", 0);
 	subText.text("STOPPED");
+	time_elapsed = 0;
 });

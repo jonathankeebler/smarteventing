@@ -24,6 +24,15 @@ module.exports = [
   "max": 900,
   "step": 10
 },
+	{
+  "type": "slider",
+  "appKey": "warning_seconds",
+  "defaultValue": 20,
+  "label": "Warning when off pace (seconds)",
+  "min": 5,
+  "max": 60,
+  "step": 5
+},
   {
     "type": "submit",
     "defaultValue": "Save"
